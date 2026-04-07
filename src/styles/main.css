@@ -111,6 +111,14 @@ body {
   background: rgba(255, 255, 255, 0.95);
 }
 
+.mobile-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1050;
+  cursor: pointer;
+}
+
 .page-content {
   padding: var(--spacing-xl);
   animation: fadeIn 0.5s ease;
@@ -385,15 +393,11 @@ body {
 }
 .dashboard-stats-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
   align-items: stretch;
   grid-auto-rows: 1fr;
-  overflow-x: auto;
-  padding-bottom: var(--spacing-sm);
-  scroll-snap-type: x mandatory;
 }
 
 .dashboard-stats-grid > * {
@@ -659,15 +663,11 @@ body {
 
 .dashboard-stats-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
   align-items: stretch;
   grid-auto-rows: 1fr;
-  overflow-x: auto;
-  padding-bottom: var(--spacing-sm);
-  scroll-snap-type: x mandatory;
 }
 
 .dashboard-stats-grid > * {
@@ -1184,9 +1184,13 @@ body {
 /* Responsive Dashboard Cards */
 @media (max-width: 768px) {
   .dashboard-stats-grid {
+    display: grid;
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
     max-width: 100%;
+    overflow-x: hidden;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
   }
 
   .dashboard-card {
@@ -1770,17 +1774,17 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
-  .sidebar {
+  .sidebar.collapsed {
     width: 80px;
+  }
+
+  .sidebar.expanded {
+    width: 280px;
   }
   
   .sidebar .menu-label,
   .sidebar-header h3 {
     display: none;
-  }
-  
-  .main-content {
-    margin-left: 80px;
   }
   
   .menu-item {
