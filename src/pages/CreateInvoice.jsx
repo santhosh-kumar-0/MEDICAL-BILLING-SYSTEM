@@ -17,6 +17,15 @@ import { jsPDF } from 'jspdf';
 import InvoicePreview from '../components/InvoicePreview';
 import { calculateInvoiceFinancials } from '../utils/invoiceMath';
 import {
+  calculateBillingRate,
+  calculateLineTotal,
+  convertInventoryToBillingUnits,
+  convertQuantityToInventoryUnits,
+  formatUnitLabel,
+  normalizePacking,
+  normalizeUnit
+} from '../utils/medicinePricing';
+import {
   getMedicines,
   initializeDefaultData,
   saveInvoiceWithStock
@@ -37,12 +46,12 @@ const CreateInvoice = () => {
   const [invoiceItems, setInvoiceItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [quantities, setQuantities] = useState({});
+  const [billingSelections, setBillingSelections] = useState({});
   const [invoiceStatus, setInvoiceStatus] = useState('pending');
   const [gstRate, setGstRate] = useState(12);
   const [discountRate, setDiscountRate] = useState(10);
   const [generatedInvoice, setGeneratedInvoice] = useState(null);
   const [savedInvoiceId, setSavedInvoiceId] = useState(null);
-  const [savedInvoiceItems, setSavedInvoiceItems] = useState([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -81,22 +90,52 @@ const CreateInvoice = () => {
     year: 'numeric'
   });
 
-  const formatPriceUnit = (priceUnit) => (priceUnit === 'tablet' ? 'Tablet' : 'Strip');
+  const formatPriceUnit = (priceUnit) => formatUnitLabel(priceUnit, { capitalize: true });
 
-  const getReferenceInvoiceQuantity = (medicineId) => (
-    savedInvoiceItems.reduce((totalQuantity, item) => (
-      item.id === medicineId ? totalQuantity + item.quantity : totalQuantity
-    ), 0)
+  const getDraftLineId = (medicineId, billingUnit) => `${medicineId}-${normalizeUnit(billingUnit)}`;
+
+  const getSelectedBillingUnit = (medicine) => (
+    billingSelections[medicine.id] || normalizeUnit(medicine.priceUnit)
   );
 
-  const getMaximumBillQuantity = (medicineId) => {
-    const medicine = medicines.find((item) => item.id === medicineId);
+  const getDraftInventoryUsage = (medicineId, excludedLineId = null) => (
+    invoiceItems.reduce((totalQuantity, item) => {
+      if (String(item.medicineId ?? item.id) !== String(medicineId) || item.id === excludedLineId) {
+        return totalQuantity;
+      }
+
+      return totalQuantity + convertQuantityToInventoryUnits(
+        item.quantity,
+        item.inventoryUnit || item.priceUnit,
+        item.billingUnit || item.priceUnit,
+        item.packing
+      );
+    }, 0)
+  );
+
+  const getMaximumBillQuantity = (medicineId, billingUnit, lineId = null) => {
+    const medicine = medicines.find((item) => String(item.id) === String(medicineId));
 
     if (!medicine) {
       return 0;
     }
 
-    return medicine.stock + getReferenceInvoiceQuantity(medicineId);
+    const availableInventoryUnits = Math.max(
+      Number(medicine.stock) - getDraftInventoryUsage(medicineId, lineId),
+      0
+    );
+
+    return Math.max(
+      Math.floor(
+        convertInventoryToBillingUnits(
+          availableInventoryUnits,
+          medicine.priceUnit,
+          billingUnit,
+          medicine.packing
+        )
+      ),
+      0
+    );
   };
 
   const touchDraft = (message) => {
@@ -169,11 +208,11 @@ const CreateInvoice = () => {
     return Object.values(customer).some(Boolean) ? customer : null;
   };
 
-  const updateQuantityInput = (medicineId, value, maxStock) => {
+  const updateQuantityInput = (lineId, value, maxStock) => {
     if (value === '') {
       setQuantities((previousQuantities) => ({
         ...previousQuantities,
-        [medicineId]: ''
+        [lineId]: ''
       }));
       return;
     }
@@ -187,24 +226,33 @@ const CreateInvoice = () => {
     const nextQuantity = Math.min(Number(cleanedValue), maxStock);
     setQuantities((previousQuantities) => ({
       ...previousQuantities,
-      [medicineId]: String(nextQuantity)
+      [lineId]: String(nextQuantity)
     }));
   };
 
-  const addItemToInvoice = (medicine, quantity = '1') => {
+  const handleBillingUnitChange = (medicineId, nextUnit) => {
+    setBillingSelections((previousSelections) => ({
+      ...previousSelections,
+      [medicineId]: normalizeUnit(nextUnit)
+    }));
+  };
+
+  const addItemToInvoice = (medicine, billingUnit, quantity = '1') => {
     const requestedQuantity = Number(quantity);
+    const normalizedBillingUnit = normalizeUnit(billingUnit);
+    const lineId = getDraftLineId(medicine.id, normalizedBillingUnit);
 
     if (!Number.isFinite(requestedQuantity) || requestedQuantity < 1) {
       alert('Please enter a valid quantity.');
       return;
     }
 
-    const existingItem = invoiceItems.find((item) => item.id === medicine.id);
+    const existingItem = invoiceItems.find((item) => item.id === lineId);
     const updatedQuantity = existingItem ? existingItem.quantity + requestedQuantity : requestedQuantity;
-    const maxQuantity = getMaximumBillQuantity(medicine.id);
+    const maxQuantity = getMaximumBillQuantity(medicine.id, normalizedBillingUnit, lineId);
 
     if (updatedQuantity > maxQuantity) {
-      alert(`Only ${maxQuantity} units are available for this bill.`);
+      alert(`Only ${maxQuantity} ${formatUnitLabel(normalizedBillingUnit)}(s) are available for this bill.`);
       return;
     }
 
@@ -212,16 +260,23 @@ const CreateInvoice = () => {
 
     if (existingItem) {
       setInvoiceItems((previousItems) => previousItems.map((item) => (
-        item.id === medicine.id ? { ...item, quantity: updatedQuantity } : item
+        item.id === lineId ? { ...item, quantity: updatedQuantity } : item
       )));
     } else {
+      const unitPrice = calculateBillingRate(medicine, normalizedBillingUnit);
+
       setInvoiceItems((previousItems) => [
         ...previousItems,
         {
-          id: medicine.id,
+          id: lineId,
+          medicineId: medicine.id,
           name: medicine.name,
-          price: medicine.price,
-          priceUnit: medicine.priceUnit || 'strip',
+          price: unitPrice,
+          unitPrice,
+          priceUnit: normalizedBillingUnit,
+          billingUnit: normalizedBillingUnit,
+          inventoryUnit: normalizeUnit(medicine.priceUnit),
+          packing: normalizePacking(medicine.packing),
           quantity: requestedQuantity,
           description: medicine.description,
           batchNo: medicine.batchNumber || 'N/A',
@@ -232,21 +287,31 @@ const CreateInvoice = () => {
 
     setQuantities((previousQuantities) => ({
       ...previousQuantities,
-      [medicine.id]: '1'
+      [lineId]: '1'
     }));
   };
 
   const updateItemQuantity = (itemId, nextQuantity) => {
+    const currentItem = invoiceItems.find((item) => item.id === itemId);
+
+    if (!currentItem) {
+      return;
+    }
+
     if (nextQuantity <= 0) {
       setInvoiceItems((previousItems) => previousItems.filter((item) => item.id !== itemId));
       touchDraft('Medicine removed. Generate the bill again to refresh the invoice preview.');
       return;
     }
 
-    const maxQuantity = getMaximumBillQuantity(itemId);
+    const maxQuantity = getMaximumBillQuantity(
+      currentItem.medicineId ?? currentItem.id,
+      currentItem.billingUnit || currentItem.priceUnit,
+      itemId
+    );
 
     if (nextQuantity > maxQuantity) {
-      alert(`Only ${maxQuantity} units are available for this bill.`);
+      alert(`Only ${maxQuantity} ${formatUnitLabel(currentItem.billingUnit || currentItem.priceUnit)}(s) are available for this bill.`);
       return;
     }
 
@@ -393,7 +458,6 @@ const CreateInvoice = () => {
       }
 
       setSavedInvoiceId(invoice.id);
-      setSavedInvoiceItems(invoice.items || []);
       setGeneratedInvoice(showPreview ? invoice : null);
       await refreshBillingData();
       setStatusMessage(
@@ -422,12 +486,12 @@ const CreateInvoice = () => {
     setInvoiceItems([]);
     setSearchTerm('');
     setQuantities({});
+    setBillingSelections({});
     setInvoiceStatus('pending');
     setGstRate(12);
     setDiscountRate(10);
     setGeneratedInvoice(null);
     setSavedInvoiceId(null);
-    setSavedInvoiceItems([]);
     setStatusMessage('Ready to create a fresh bill.');
   };
 
@@ -538,15 +602,19 @@ const CreateInvoice = () => {
                 </div>
               ) : (
                 filteredMedicines.map((medicine) => {
-                  const currentQuantity = quantities[medicine.id] ?? '1';
-                  const existingDraftQuantity = invoiceItems.find((item) => item.id === medicine.id)?.quantity || 0;
-                  const referenceQuantity = getReferenceInvoiceQuantity(medicine.id);
-                  const maxQuantity = getMaximumBillQuantity(medicine.id);
+                  const selectedBillingUnit = getSelectedBillingUnit(medicine);
+                  const lineId = getDraftLineId(medicine.id, selectedBillingUnit);
+                  const currentQuantity = quantities[lineId] ?? '1';
+                  const existingDraftQuantity = invoiceItems.find((item) => item.id === lineId)?.quantity || 0;
+                  const maxQuantity = getMaximumBillQuantity(medicine.id, selectedBillingUnit, lineId);
                   const outOfStock = maxQuantity === 0;
                   const disableAdd = existingDraftQuantity >= maxQuantity;
-                  const stockLabel = referenceQuantity > 0
-                    ? `${medicine.stock} in stock + ${referenceQuantity} saved`
-                    : `${medicine.stock} in stock`;
+                  const packing = normalizePacking(medicine.packing);
+                  const stripRate = calculateBillingRate(medicine, 'strip');
+                  const tabletRate = calculateBillingRate(medicine, 'tablet');
+                  const stockLabel = outOfStock
+                    ? 'Out of Stock'
+                    : `${maxQuantity} ${formatUnitLabel(selectedBillingUnit)}${maxQuantity === 1 ? '' : 's'} available`;
 
                   return (
                     <motion.div
@@ -559,14 +627,20 @@ const CreateInvoice = () => {
                           <FaPills />
                         </div>
                         <div className={`stock-badge ${outOfStock ? 'out' : 'available'}`}>
-                          {outOfStock ? 'Out of Stock' : stockLabel}
+                          {stockLabel}
                         </div>
                       </div>
 
                       <div className="medicine-content">
                         <div className="billing-medicine-title-row">
                           <h3 className="medicine-name">{medicine.name}</h3>
-                          <span className="price-chip">{formatCurrency(medicine.price)}</span>
+                          <span className="price-chip">
+                            {formatCurrency(calculateBillingRate(medicine, selectedBillingUnit))}
+                            {' '}
+                            /
+                            {' '}
+                            {formatPriceUnit(selectedBillingUnit)}
+                          </span>
                         </div>
 
                         <div className="billing-medicine-meta">
@@ -575,14 +649,30 @@ const CreateInvoice = () => {
                         </div>
                         <div className="billing-medicine-meta">
                           <span>Batch: {medicine.batchNumber || 'N/A'}</span>
-                          <span>{formatPriceUnit(medicine.priceUnit)}</span>
+                          <span>Packing: {packing}</span>
                         </div>
                         <div className="billing-medicine-meta">
                           <span>Expiry: {medicine.expiryDate ? formatDate(medicine.expiryDate) : 'N/A'}</span>
+                          <span>Stock: {medicine.stock} {formatUnitLabel(medicine.priceUnit)}{medicine.stock === 1 ? '' : 's'}</span>
+                        </div>
+                        <div className="billing-medicine-meta">
+                          <span>Strip: {formatCurrency(stripRate)}</span>
+                          <span>Tablet: {formatCurrency(tabletRate)}</span>
                         </div>
                       </div>
 
                       <div className="medicine-actions billing-card-actions">
+                        <label className="billing-unit-control">
+                          <select
+                            value={selectedBillingUnit}
+                            onChange={(event) => handleBillingUnitChange(medicine.id, event.target.value)}
+                          >
+                            <option value="strip">Strip</option>
+                            <option value="tablet">Tablet</option>
+                          </select>
+                          <span className="stock-hint">Unit</span>
+                        </label>
+
                         <div className="quantity-control">
                           <input
                             type="text"
@@ -590,7 +680,7 @@ const CreateInvoice = () => {
                             pattern="[0-9]*"
                             value={currentQuantity}
                             onChange={(event) => updateQuantityInput(
-                              medicine.id,
+                              lineId,
                               event.target.value,
                               maxQuantity
                             )}
@@ -601,7 +691,7 @@ const CreateInvoice = () => {
                         <motion.button
                           type="button"
                           className="btn-primary add-to-bill"
-                          onClick={() => addItemToInvoice(medicine, currentQuantity)}
+                          onClick={() => addItemToInvoice(medicine, selectedBillingUnit, currentQuantity)}
                           disabled={outOfStock || disableAdd}
                           whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
@@ -697,6 +787,10 @@ const CreateInvoice = () => {
                           {' '}
                           {formatPriceUnit(item.priceUnit)}
                           {' '}
+                          | Pack
+                          {' '}
+                          {normalizePacking(item.packing)}
+                          {' '}
                           | Batch
                           {' '}
                           {item.batchNo || 'N/A'}
@@ -721,7 +815,7 @@ const CreateInvoice = () => {
                           </button>
                         </div>
 
-                        <div className="item-total">{formatCurrency(item.quantity * item.price)}</div>
+                        <div className="item-total">{formatCurrency(calculateLineTotal(item))}</div>
 
                         <button
                           type="button"

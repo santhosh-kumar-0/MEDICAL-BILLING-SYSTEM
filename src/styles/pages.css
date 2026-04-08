@@ -625,6 +625,17 @@
   gap: 8px;
 }
 
+.billing-unit-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 110px;
+}
+
+.billing-unit-control select {
+  min-width: 110px;
+}
+
 .quantity-control input {
   width: 72px;
   padding: 8px;
@@ -1319,6 +1330,10 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-lg);
+}
+
+.form-row-compact {
+  grid-template-columns: minmax(140px, 0.7fr) minmax(220px, 1.3fr);
 }
 
 .form-row .form-group {
@@ -2778,12 +2793,86 @@ textarea.error {
   width: 10%;
 }
 
+.invoice-products-table .unit-col {
+  width: 10%;
+  text-align: center;
+}
+
 .invoice-products-table .rate {
   width: 14%;
 }
 
 .invoice-products-table .amount {
   width: 16%;
+}
+
+.clean-bill-paper {
+  width: min(100%, 720px);
+  max-width: 720px;
+  padding: 24px 22px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--gray-300);
+  box-shadow: none;
+}
+
+.clean-bill-header {
+  padding-bottom: 18px;
+}
+
+.clean-bill-paper .invoice-branding-block {
+  gap: 8px;
+}
+
+.clean-bill-paper .invoice-title-label {
+  align-self: center;
+}
+
+.clean-bill-paper .shop-name h1 {
+  font-size: 30px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.clean-bill-details p {
+  font-size: 12px;
+}
+
+.invoice-meta-grid-compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.invoice-meta-card strong.invoice-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.invoice-bill-parties {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.invoice-line-table {
+  table-layout: fixed;
+}
+
+.invoice-line-table .sl-no,
+.invoice-line-table .qty,
+.invoice-line-table .unit-col,
+.invoice-line-table .rate,
+.invoice-line-table .amount {
+  text-align: center;
+}
+
+.invoice-line-table .product-name,
+.invoice-line-table .batch-no {
+  text-align: left;
+}
+
+.clean-bill-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
 }
 
 .product-title {
@@ -2948,7 +3037,9 @@ textarea.error {
   }
 
   .billing-hero-metrics,
-  .invoice-meta-grid {
+  .invoice-meta-grid,
+  .invoice-meta-grid-compact,
+  .invoice-bill-parties {
     grid-template-columns: 1fr;
   }
 
@@ -3030,6 +3121,11 @@ textarea.error {
     width: 100%;
   }
 
+  .form-row,
+  .form-row-compact {
+    grid-template-columns: 1fr;
+  }
+
   .invoice-item {
     grid-template-columns: 1fr;
     align-items: flex-start;
@@ -3098,6 +3194,14 @@ textarea.error {
     align-self: flex-start;
   }
 
+  .billing-unit-control {
+    width: 100%;
+  }
+
+  .billing-unit-control select {
+    width: 100%;
+  }
+
   .billing-card-actions .quantity-control {
     width: 100%;
     justify-content: space-between;
@@ -3139,17 +3243,6 @@ textarea.error {
   .pharmacy-bill-paper {
     padding: 16px 14px;
     border-radius: 16px;
-  }
-
-  .invoice-brand-logo {
-    width: 54px;
-    height: 54px;
-    border-radius: 16px;
-  }
-
-  .invoice-brand-logo img {
-    width: 40px;
-    height: 40px;
   }
 
   .pharmacy-bill-paper .shop-name h1 {

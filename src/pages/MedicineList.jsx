@@ -4,6 +4,11 @@ import { FaEdit, FaPlus, FaTrash, FaBoxes, FaPills } from 'react-icons/fa';
 import MedicineForm from '../components/MedicineForm';
 import SearchBar from '../components/SearchBar';
 import {
+  calculateBillingRate,
+  formatUnitLabel,
+  normalizePacking
+} from '../utils/medicinePricing';
+import {
   getMedicines,
   addMedicine,
   updateMedicine,
@@ -108,10 +113,6 @@ const MedicineList = () => {
       style: 'currency',
       currency: 'INR'
     }).format(amount);
-  };
-
-  const formatPriceUnit = (priceUnit) => {
-    return priceUnit === 'tablet' ? 'per tablet' : 'per strip';
   };
 
   const formatDate = (dateString) => {
@@ -305,6 +306,10 @@ const MedicineList = () => {
         ) : (
           filteredMedicines.map((medicine, index) => {
             const stockStatus = getStockStatus(medicine);
+            const packing = normalizePacking(medicine.packing);
+            const stripRate = calculateBillingRate(medicine, 'strip');
+            const tabletRate = calculateBillingRate(medicine, 'tablet');
+
             return (
               <motion.div
                 key={medicine.id}
@@ -326,10 +331,22 @@ const MedicineList = () => {
 
                   <div className="medicine-details">
                     <div className="detail-item">
-                      <span className="label">Price:</span>
+                      <span className="label">Stored Price:</span>
                       <span className="value">
-                        {formatCurrency(medicine.price)} / {formatPriceUnit(medicine.priceUnit)}
+                        {formatCurrency(medicine.price)} / {formatUnitLabel(medicine.priceUnit)}
                       </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Packing:</span>
+                      <span className="value">{packing} tablets</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Strip Rate:</span>
+                      <span className="value">{formatCurrency(stripRate)}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Tablet Rate:</span>
+                      <span className="value">{formatCurrency(tabletRate)}</span>
                     </div>
                     <div className="detail-item">
                       <span className="label">Stock:</span>

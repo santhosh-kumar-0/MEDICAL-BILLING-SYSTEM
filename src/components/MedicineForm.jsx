@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import { FaSave, FaTimes, FaCalendarAlt, FaRupeeSign } from 'react-icons/fa';
 
 const MAX_STOCK_QUANTITY = 200;
+const MAX_PACKING_QUANTITY = 500;
 const INITIAL_FORM_DATA = {
   name: '',
   price: '',
   priceUnit: 'strip',
+  packing: '1',
   stock: '',
   expiryDate: '',
   description: '',
@@ -28,6 +30,7 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
         name: medicine.name || '',
         price: medicine.price ?? '',
         priceUnit: medicine.priceUnit || 'strip',
+        packing: medicine.packing ?? '1',
         stock: medicine.stock ?? '',
         expiryDate: medicine.expiryDate || '',
         description: medicine.description || '',
@@ -53,7 +56,7 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
       value = value.replace(/^[^A-Za-z]+/, '');
     }
 
-    if (name === 'stock' || name === 'minStockLevel') {
+    if (name === 'stock' || name === 'minStockLevel' || name === 'packing') {
       if (value === '') {
         setFormData(prev => ({
           ...prev,
@@ -72,7 +75,7 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
 
       const numericValue = Math.min(
         Math.max(Number.parseInt(value, 10) || 0, 0),
-        MAX_STOCK_QUANTITY
+        name === 'packing' ? MAX_PACKING_QUANTITY : MAX_STOCK_QUANTITY
       );
       value = String(numericValue);
     }
@@ -94,6 +97,7 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
     const newErrors = {};
     const stockValue = Number(formData.stock);
     const minStockValue = Number(formData.minStockLevel || 0);
+    const packingValue = Number(formData.packing);
 
     if (!formData.name.trim()) {
       newErrors.name = 'Medicine name is required';
@@ -107,6 +111,12 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
 
     if (formData.priceUnit !== 'strip' && formData.priceUnit !== 'tablet') {
       newErrors.priceUnit = 'Select a valid price type';
+    }
+
+    if (!formData.packing || packingValue <= 0) {
+      newErrors.packing = 'Valid packing is required';
+    } else if (packingValue > MAX_PACKING_QUANTITY) {
+      newErrors.packing = `Packing cannot exceed ${MAX_PACKING_QUANTITY}`;
     }
 
     if (!formData.stock || stockValue < 0) {
@@ -151,6 +161,7 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
         ...formData,
         price: parseFloat(formData.price),
         priceUnit: formData.priceUnit,
+        packing: parseInt(formData.packing, 10),
         stock: parseInt(formData.stock, 10),
         minStockLevel: formData.minStockLevel ? parseInt(formData.minStockLevel, 10) : 0
       };
@@ -257,6 +268,34 @@ const MedicineForm = ({ medicine, onSave, onCancel, isEditing = false }) => {
                 <option value="tablet">Per Tablet</option>
               </select>
               {errors.priceUnit && <span className="error-message">{errors.priceUnit}</span>}
+            </div>
+          </div>
+
+          <div className="form-row form-row-compact">
+            <div className="form-group">
+              <label htmlFor="packing">Packing *</label>
+              <input
+                type="number"
+                id="packing"
+                name="packing"
+                value={formData.packing}
+                onChange={handleInputChange}
+                className={errors.packing ? 'error' : ''}
+                placeholder="10 or 15"
+                min="1"
+                max={MAX_PACKING_QUANTITY}
+              />
+              {errors.packing && <span className="error-message">{errors.packing}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="packingHint">Packing Example</label>
+              <input
+                type="text"
+                id="packingHint"
+                value={`1 strip = ${formData.packing || '1'} tablets`}
+                readOnly
+              />
             </div>
           </div>
 

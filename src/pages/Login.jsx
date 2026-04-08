@@ -9,7 +9,6 @@ import {
   FaSignInAlt
 } from 'react-icons/fa';
 import { login, isAuthenticated } from '../utils/localStorageManager';
-import pharmaCareLogo from '../assets/Gemini_Generated_Image_f6jccsf6jccsf6jc.png';
 import './Login.css';
 
 const Login = () => {
@@ -147,11 +146,9 @@ const Login = () => {
               }}
             >
               <div className="brand-logo-shell">
-                <img
-                  src={pharmaCareLogo}
-                  alt="Sri Krishna Medicals logo"
-                  className="brand-logo-image"
-                />
+                <div className="brand-logo-monogram" aria-label="Sri Krishna Medicals">
+                  SK
+                </div>
               </div>
             </motion.div>
 

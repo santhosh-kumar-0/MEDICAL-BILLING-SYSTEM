@@ -1,9 +1,76 @@
+import { normalizePacking, normalizeUnit } from './medicinePricing';
+
 const STORAGE_KEYS = {
   AUTH_TOKEN: 'authToken',
   AUTH_SESSION: 'authSession',
   MEDICINES: 'medicines',
   CUSTOMERS: 'customers',
   INVOICES: 'invoices'
+};
+
+const normalizeCurrencyValue = (value) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
+};
+
+const normalizeIntegerValue = (value) => {
+  const numericValue = Number.parseInt(value, 10);
+  return Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
+};
+
+const idsMatch = (firstId, secondId) => String(firstId) === String(secondId);
+
+const normalizeMedicineRecord = (medicine = {}) => ({
+  ...medicine,
+  price: normalizeCurrencyValue(medicine.price),
+  priceUnit: normalizeUnit(medicine.priceUnit),
+  packing: normalizePacking(medicine.packing),
+  stock: normalizeIntegerValue(medicine.stock),
+  minStockLevel: normalizeIntegerValue(medicine.minStockLevel),
+  description: medicine.description || '',
+  category: medicine.category || '',
+  manufacturer: medicine.manufacturer || '',
+  batchNumber: medicine.batchNumber || '',
+  expiryDate: medicine.expiryDate || ''
+});
+
+const normalizeInvoiceItem = (item = {}) => {
+  const billingUnit = normalizeUnit(item.billingUnit || item.priceUnit);
+  const medicineId = item.medicineId ?? item.id;
+
+  return {
+    ...item,
+    id: item.id ?? medicineId ?? Date.now(),
+    medicineId,
+    price: normalizeCurrencyValue(item.unitPrice ?? item.price),
+    unitPrice: normalizeCurrencyValue(item.unitPrice ?? item.price),
+    priceUnit: billingUnit,
+    billingUnit,
+    inventoryUnit: normalizeUnit(item.inventoryUnit || item.priceUnit),
+    packing: normalizePacking(item.packing),
+    quantity: normalizeIntegerValue(item.quantity),
+    description: item.description || '',
+    batchNo: item.batchNo || item.batchNumber || 'N/A',
+    expiryDate: item.expiryDate || null
+  };
+};
+
+const normalizeInvoiceRecord = (invoice = {}) => {
+  const fallbackTimestamp = invoice.createdAt || invoice.updatedAt || new Date().toISOString();
+
+  return {
+    ...invoice,
+    createdAt: invoice.createdAt || fallbackTimestamp,
+    updatedAt: invoice.updatedAt || fallbackTimestamp,
+    status: invoice.status || 'pending',
+    items: Array.isArray(invoice.items) ? invoice.items.map(normalizeInvoiceItem) : []
+  };
+};
+
+const readNormalizedCollection = (storageKey, normalizer) => {
+  const records = getStorageItem(storageKey, []).map(normalizer);
+  setStorageItem(storageKey, records);
+  return records;
 };
 
 export const setStorageItem = (key, value) => {
@@ -77,38 +144,43 @@ export const getCurrentUser = () => getStorageItem(STORAGE_KEYS.AUTH_SESSION, nu
 export const isAuthenticated = () => Boolean(getAuthToken() && getCurrentUser());
 
 export const getMedicines = async () => {
-  return getStorageItem(STORAGE_KEYS.MEDICINES, []);
+  return readNormalizedCollection(STORAGE_KEYS.MEDICINES, normalizeMedicineRecord);
 };
 
 export const addMedicine = async (medicine) => {
-  const medicines = getStorageItem(STORAGE_KEYS.MEDICINES, []);
-  const newMedicine = { ...medicine, id: Date.now() };
+  const medicines = await getMedicines();
+  const newMedicine = normalizeMedicineRecord({ ...medicine, id: Date.now() });
   medicines.push(newMedicine);
   setStorageItem(STORAGE_KEYS.MEDICINES, medicines);
   return newMedicine;
 };
 
 export const updateMedicine = async (id, updatedMedicine) => {
-  const medicines = getStorageItem(STORAGE_KEYS.MEDICINES, []);
-  const index = medicines.findIndex(m => m.id == id);
+  const medicines = await getMedicines();
+  const index = medicines.findIndex((medicine) => idsMatch(medicine.id, id));
+
   if (index !== -1) {
-    medicines[index] = { ...medicines[index], ...updatedMedicine };
+    medicines[index] = normalizeMedicineRecord({
+      ...medicines[index],
+      ...updatedMedicine
+    });
     setStorageItem(STORAGE_KEYS.MEDICINES, medicines);
     return medicines[index];
   }
+
   return null;
 };
 
 export const deleteMedicine = async (id) => {
-  const medicines = getStorageItem(STORAGE_KEYS.MEDICINES, []);
-  const filtered = medicines.filter(m => m.id != id);
+  const medicines = await getMedicines();
+  const filtered = medicines.filter((medicine) => !idsMatch(medicine.id, id));
   setStorageItem(STORAGE_KEYS.MEDICINES, filtered);
   return true;
 };
 
 export const getMedicineById = async (id) => {
-  const medicines = getStorageItem(STORAGE_KEYS.MEDICINES, []);
-  return medicines.find(m => m.id == id) || null;
+  const medicines = await getMedicines();
+  return medicines.find((medicine) => idsMatch(medicine.id, id)) || null;
 };
 
 export const getCustomers = async () => {
@@ -147,38 +219,52 @@ export const getCustomerById = async (id) => {
 };
 
 export const getInvoices = async () => {
-  return getStorageItem(STORAGE_KEYS.INVOICES, []);
+  return readNormalizedCollection(STORAGE_KEYS.INVOICES, normalizeInvoiceRecord);
 };
 
 export const addInvoice = async (invoice) => {
-  const invoices = getStorageItem(STORAGE_KEYS.INVOICES, []);
-  const newInvoice = { ...invoice, id: Date.now() };
+  const invoices = await getInvoices();
+  const timestamp = new Date().toISOString();
+  const newInvoice = normalizeInvoiceRecord({
+    ...invoice,
+    id: Date.now(),
+    createdAt: timestamp,
+    updatedAt: timestamp
+  });
   invoices.push(newInvoice);
   setStorageItem(STORAGE_KEYS.INVOICES, invoices);
   return newInvoice;
 };
 
 export const updateInvoice = async (id, updatedInvoice) => {
-  const invoices = getStorageItem(STORAGE_KEYS.INVOICES, []);
-  const index = invoices.findIndex(i => i.id == id);
+  const invoices = await getInvoices();
+  const index = invoices.findIndex((invoice) => idsMatch(invoice.id, id));
+
   if (index !== -1) {
-    invoices[index] = { ...invoices[index], ...updatedInvoice };
+    invoices[index] = normalizeInvoiceRecord({
+      ...invoices[index],
+      ...updatedInvoice,
+      id: invoices[index].id,
+      createdAt: invoices[index].createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
     setStorageItem(STORAGE_KEYS.INVOICES, invoices);
     return invoices[index];
   }
+
   return null;
 };
 
 export const deleteInvoice = async (id) => {
-  const invoices = getStorageItem(STORAGE_KEYS.INVOICES, []);
-  const filtered = invoices.filter(i => i.id != id);
+  const invoices = await getInvoices();
+  const filtered = invoices.filter((invoice) => !idsMatch(invoice.id, id));
   setStorageItem(STORAGE_KEYS.INVOICES, filtered);
   return true;
 };
 
 export const getInvoiceById = async (id) => {
-  const invoices = getStorageItem(STORAGE_KEYS.INVOICES, []);
-  return invoices.find(i => i.id == id) || null;
+  const invoices = await getInvoices();
+  return invoices.find((invoice) => idsMatch(invoice.id, id)) || null;
 };
 
 export const saveInvoiceWithStock = async (invoice, invoiceId = null) => {

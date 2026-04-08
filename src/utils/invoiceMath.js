@@ -1,3 +1,5 @@
+import { calculateLineTotal } from './medicinePricing';
+
 const normalizeRate = (value, fallback = 0) => {
   const parsedRate = Number(value);
 
@@ -16,7 +18,7 @@ export const calculateInvoiceFinancials = (invoice = {}, options = {}) => {
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const subtotal = typeof invoice.subtotal === 'number'
     ? invoice.subtotal
-    : items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.price) || 0)), 0);
+    : items.reduce((sum, item) => sum + calculateLineTotal(item), 0);
   const discountRate = normalizeRate(invoice.discountRate, options.defaultDiscountRate || 0);
   const discountAmount = typeof invoice.discountAmount === 'number'
     ? invoice.discountAmount
@@ -42,4 +44,3 @@ export const calculateInvoiceFinancials = (invoice = {}, options = {}) => {
     totalAmount
   };
 };
-
