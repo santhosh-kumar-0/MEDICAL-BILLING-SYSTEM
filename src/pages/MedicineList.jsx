@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FaEdit, FaPlus, FaTrash, FaBoxes, FaPills } from 'react-icons/fa';
 import MedicineForm from '../components/MedicineForm';
@@ -19,10 +19,26 @@ const MedicineList = () => {
   const [stockFilter, setStockFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
+  const formSectionRef = useRef(null);
 
   useEffect(() => {
     loadMedicines();
   }, []);
+
+  useEffect(() => {
+    if (!showForm || !formSectionRef.current) {
+      return undefined;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      formSectionRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [showForm, editingMedicine?.id]);
 
   const loadMedicines = async () => {
     try {
@@ -106,6 +122,16 @@ const MedicineList = () => {
     });
   };
 
+  const openMedicineForm = (medicine = null) => {
+    setEditingMedicine(medicine);
+    setShowForm(true);
+  };
+
+  const closeMedicineForm = () => {
+    setEditingMedicine(null);
+    setShowForm(false);
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -183,13 +209,11 @@ const MedicineList = () => {
             className="btn-primary"
             onClick={() => {
               if (showForm) {
-                setEditingMedicine(null);
-                setShowForm(false);
+                closeMedicineForm();
                 return;
               }
 
-              setEditingMedicine(null);
-              setShowForm(true);
+              openMedicineForm();
             }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -201,15 +225,16 @@ const MedicineList = () => {
       </motion.div>
 
       {showForm && (
-        <motion.div variants={cardVariants}>
+        <motion.div
+          ref={formSectionRef}
+          className="medicine-form-anchor"
+          variants={cardVariants}
+        >
           <MedicineForm
             medicine={editingMedicine}
             isEditing={Boolean(editingMedicine)}
             onSave={handleSaveMedicine}
-            onCancel={() => {
-              setEditingMedicine(null);
-              setShowForm(false);
-            }}
+            onCancel={closeMedicineForm}
           />
         </motion.div>
       )}
@@ -279,8 +304,7 @@ const MedicineList = () => {
             <motion.button
               className="btn-primary"
               onClick={() => {
-                setEditingMedicine(null);
-                setShowForm(true);
+                openMedicineForm();
               }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -336,10 +360,7 @@ const MedicineList = () => {
                 <div className="medicine-actions">
                   <motion.button
                     className="action-btn edit"
-                    onClick={() => {
-                      setEditingMedicine(medicine);
-                      setShowForm(true);
-                    }}
+                    onClick={() => openMedicineForm(medicine)}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     title="Update Medicine Stock"

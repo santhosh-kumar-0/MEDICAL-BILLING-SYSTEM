@@ -1295,6 +1295,10 @@
   gap: var(--spacing-lg);
 }
 
+.medicine-form-anchor {
+  scroll-margin-top: clamp(72px, 12vw, 112px);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
