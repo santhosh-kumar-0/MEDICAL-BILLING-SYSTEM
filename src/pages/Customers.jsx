@@ -213,16 +213,7 @@ const Customers = () => {
           <div className="empty-state">
             <FaUser className="empty-icon" />
             <h3>No customers found</h3>
-            <p>Try adjusting your search or add the first customer.</p>
-            <motion.button
-              className="btn-primary"
-              onClick={() => setShowForm(true)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaPlus className="btn-icon" />
-              Add First Customer
-            </motion.button>
+            <p>Try adjusting your search or use the Add Customer button above.</p>
           </div>
         ) : (
           filteredCustomers.map((customer, index) => (

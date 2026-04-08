@@ -300,18 +300,7 @@ const MedicineList = () => {
           <div className="empty-state">
             <FaBoxes className="empty-icon" />
             <h3>No medicines found</h3>
-            <p>Try adjusting your search or add the first medicine.</p>
-            <motion.button
-              className="btn-primary"
-              onClick={() => {
-                openMedicineForm();
-              }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaPlus className="btn-icon" />
-              Add First Medicine
-            </motion.button>
+            <p>Try adjusting your search or use the Add Medicine button above.</p>
           </div>
         ) : (
           filteredMedicines.map((medicine, index) => {

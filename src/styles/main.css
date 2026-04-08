@@ -77,6 +77,8 @@ body {
 }
 
 .main-content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   margin-left: 0;
   transition: margin-left var(--transition-base);
@@ -120,6 +122,7 @@ body {
 }
 
 .page-content {
+  flex: 1;
   padding: var(--spacing-xl);
   animation: fadeIn 0.5s ease;
   background: white;
@@ -128,7 +131,33 @@ body {
   max-width: none;
   margin: 0;
   width: 100%;
-  min-height: 100vh;
+  min-height: 0;
+}
+
+.app-footer {
+  margin: 0 var(--spacing-xl) var(--spacing-xl);
+  padding: 18px 20px 24px;
+  text-align: center;
+  border-top: 1px solid rgba(190, 217, 211, 0.95);
+  color: var(--gray-600);
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--gray-800);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-footer-subtitle,
+.app-footer-credit {
+  margin-top: 4px;
+  font-size: 13px;
 }
 
 @keyframes fadeIn {
@@ -1185,7 +1214,7 @@ body {
 @media (max-width: 768px) {
   .dashboard-stats-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--spacing-md);
     max-width: 100%;
     overflow-x: hidden;
@@ -1193,30 +1222,24 @@ body {
     grid-auto-columns: auto;
   }
 
+  .insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-md);
+  }
+
   .dashboard-card {
     min-height: 180px;
-    padding: var(--spacing-lg);
-  }
-
-  .card-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
-  }
-
-  .card-value {
-    font-size: 32px;
-  }
-
-  .card-title {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .dashboard-card {
-    min-height: 160px;
     padding: var(--spacing-md);
+  }
+
+  .dashboard-card .card-header {
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .dashboard-card .card-title-section {
+    margin-top: 0;
   }
 
   .card-icon {
@@ -1226,7 +1249,8 @@ body {
   }
 
   .card-value {
-    font-size: 28px;
+    font-size: clamp(22px, 5vw, 28px);
+    overflow-wrap: anywhere;
   }
 
   .card-title {
@@ -1235,6 +1259,31 @@ body {
 
   .card-subtitle {
     font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-card {
+    min-height: 160px;
+    padding: 12px;
+  }
+
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .card-value {
+    font-size: clamp(18px, 6vw, 24px);
+  }
+
+  .card-title {
+    font-size: 12px;
+  }
+
+  .card-subtitle {
+    font-size: 10px;
   }
 }
 
@@ -1804,6 +1853,11 @@ body {
 
   .main-content.sidebar-open {
     margin-left: 0;
+  }
+
+  .app-footer {
+    margin: 0 var(--spacing-md) var(--spacing-md);
+    padding: 16px 12px 20px;
   }
   
   .navbar-left {

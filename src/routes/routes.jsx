@@ -17,6 +17,14 @@ const getMatchesMobile = () => (
   typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
 );
 
+const AppFooter = () => (
+  <footer className="app-footer">
+    <p className="app-footer-title">Sri Krishna Medicals</p>
+    <p className="app-footer-subtitle">React Project</p>
+    <p className="app-footer-credit">Created by SANTHOSHKUMAR</p>
+  </footer>
+);
+
 const Layout = ({ children }) => {
   const location = useLocation();
   const [isMobile, setIsMobile] = React.useState(getMatchesMobile);
@@ -91,6 +99,7 @@ const Layout = ({ children }) => {
         }`}
       >
         <div className="page-content">{children}</div>
+        <AppFooter />
       </div>
     </motion.div>
   );
