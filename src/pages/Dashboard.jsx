@@ -211,6 +211,13 @@ const Dashboard = () => {
         <h2>Inventory Snapshot</h2>
         <div className="insights-grid">
           <DashboardCard
+            title="Total Invoices"
+            value={invoices.length.toString()}
+            subtitle="All saved invoice count"
+            icon={<FaReceipt />}
+            color="#2563EB"
+          />
+          <DashboardCard
             title="Low Stock"
             value={lowStockItems.length.toString()}
             subtitle="Needs restocking"
